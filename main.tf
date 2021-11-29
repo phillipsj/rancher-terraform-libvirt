@@ -7,7 +7,7 @@ terraform {
 }
 
 provider "libvirt" {
-  # Configuration options
+  uri = "qemu:///system"
 }
 
 resource "libvirt_volume" "tumbleweed" {
@@ -15,6 +15,12 @@ resource "libvirt_volume" "tumbleweed" {
   pool   = "default"
   source = "http://download.opensuse.org/tumbleweed/appliances/openSUSE-Tumbleweed-JeOS.x86_64-OpenStack-Cloud.qcow2"
   format = "qcow2"
+}
+
+resource "libvirt_volume" "rancher" {
+  name           = "rancher"
+  base_volume_id = libvirt_volume.tumbleweed.id
+  size = 10737418240
 }
 
 data "template_file" "user_data" {
@@ -37,15 +43,16 @@ resource "libvirt_cloudinit_disk" "commoninit" {
 
 # Create the machine
 resource "libvirt_domain" "rancher" {
-  name   = "tumbleweed-terraform"
-  memory = "512"
-  vcpu   = 1
+  name   = "rancher"
+  memory = "4096"
+  vcpu   = 2
 
 
   cloudinit = libvirt_cloudinit_disk.commoninit.id
 
   network_interface {
-    network_name = "default"
+    bridge = "br0"
+    hostname = "rancher"
   }
 
   # IMPORTANT: this is a known bug on cloud images, since they expect a console
@@ -64,7 +71,7 @@ resource "libvirt_domain" "rancher" {
   }
 
   disk {
-    volume_id = libvirt_volume.tumbleweed.id
+    volume_id = libvirt_volume.rancher.id
   }
 
   graphics {
